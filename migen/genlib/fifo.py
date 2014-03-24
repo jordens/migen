@@ -19,6 +19,11 @@ class _FIFOInterface:
 	`readable`). The data entry written first to the input 
 	also appears first on the output.
 
+	Note that this FIFO is in fact First Word Fall Through (FWFT) where
+	`readable` indicates that `dout` is currently valid data and not --
+	like in "classic" FIFOs -- that `re` can be asserted to obtain new
+	valid data at `dout`.
+
 	Parameters
 	----------
 	width_or_layout : int, layout
@@ -180,6 +185,65 @@ class SyncFIFOBuffered(Module, _FIFOInterface):
 				).Elif(self.re,
 					self.readable.eq(0),
 				)]
+
+class SyncFIFORelaxed(Module, _FIFOInterface):
+	"""Relaxed read timing wrapper for `SyncFIFO`.
+
+	Relaxes timing of the original FIFO by registering its output thus
+	making reads always synchronous. This increases the latency from one
+	to two cycles but allows the FIFO to be mapped to synchronously read
+	block RAM. To restore the original latency, a bypass that
+	writes directly to the output if possible is added. This again reduces
+	the latency to one cycle. The external behavior of this FIFO is the
+	same as a `SyncFIFO` with a depth increased by one.
+
+	{old}
+	"""
+	__doc__ = __doc__.format(old=SyncFIFO.__doc__)
+	def __init__(self, width_or_layout, depth):
+		_FIFOInterface.__init__(self, width_or_layout, depth)
+		self.submodules.fifo = fifo = SyncFIFO(width_or_layout, depth)
+
+		self.writable = fifo.writable
+		self.din_bits = fifo.din_bits
+		self.din = fifo.din
+		self.flush = fifo.flush
+		self.level = Signal(max=depth + 2) # FIXME not accurate anymore
+
+		###
+
+		dout = Signal(flen(fifo.dout_bits))
+		dout_readable = Signal()
+		buff = Signal(flen(fifo.dout_bits))
+		buff_readable = Signal()
+		do_shunt = Signal()
+		self.comb += [
+				self.level.eq(fifo.level + buff_readable),
+				do_shunt.eq(self.we & ~fifo.readable
+					& ~(self.readable & ~self.re)),
+				fifo.we.eq(self.we & ~do_shunt),
+				self.dout_bits.eq(Mux(buff_readable, buff, dout)),
+				self.readable.eq(buff_readable | dout_readable),
+				fifo.re.eq(self.re | ~self.readable),
+				]
+
+		self.sync += [
+				dout.eq(fifo.dout_bits),
+				dout_readable.eq(fifo.readable),
+				If(do_shunt,
+					buff.eq(self.din_bits),
+					buff_readable.eq(1),
+				).Elif(~self.re & ~buff_readable,
+					buff.eq(dout),
+					buff_readable.eq(dout_readable),
+				).Elif(self.re & buff_readable,
+					buff_readable.eq(0),
+				),
+				If(self.flush,
+					dout_readable.eq(0),
+					buff_readable.eq(0),
+				),
+				]
 
 class AsyncFIFO(Module, _FIFOInterface):
 	"""Asynchronous FIFO (first in, first out)

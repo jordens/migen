@@ -26,6 +26,10 @@ class SyncFIFO(_FIFOActor):
 	def __init__(self, layout, depth):
 		_FIFOActor.__init__(self, fifo.SyncFIFO, layout, depth)
 
+class SyncFIFORelaxed(_FIFOActor):
+	def __init__(self, layout, depth):
+		_FIFOActor.__init__(self, fifo.SyncFIFORelaxed, layout, depth)
+
 class AsyncFIFO(_FIFOActor):
 	def __init__(self, layout, depth):
 		_FIFOActor.__init__(self, fifo.AsyncFIFO, layout, depth)		

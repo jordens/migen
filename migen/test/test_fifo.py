@@ -1,7 +1,7 @@
 import unittest
 
 from migen.fhdl.std import *
-from migen.genlib.fifo import SyncFIFO
+from migen.genlib.fifo import SyncFIFO, SyncFIFORelaxed
 
 from migen.test.support import SimCase, SimBench
 
@@ -32,8 +32,19 @@ class SyncFIFOCase(SimCase, unittest.TestCase):
 				try:
 					i = seq.pop(0)
 				except IndexError:
-					print(tbp.dut.level)
 					raise StopSimulation
 				self.assertEqual(tbp.dut.dout.a, i)
 				self.assertEqual(tbp.dut.dout.b, i*2)
 		self.run_with(cb)
+
+class SyncFIFORelaxedCase(SyncFIFOCase):
+	class TestBench(SimBench):
+		def __init__(self):
+			self.submodules.dut = SyncFIFORelaxed([("a", 32), ("b", 32)], 2)
+
+			self.sync += [
+				If(self.dut.we & self.dut.writable,
+					self.dut.din.a.eq(self.dut.din.a + 1),
+					self.dut.din.b.eq(self.dut.din.b + 2)
+				)
+			]
