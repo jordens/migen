@@ -47,6 +47,7 @@ class BankArray(Module):
     def scan(self, ifargs, ifkwargs):
         self.banks = []
         self.srams = []
+        self.constants = []
         for name, obj in xdir(self.source, True):
             if hasattr(obj, "get_csrs"):
                 csrs = obj.get_csrs()
@@ -63,6 +64,9 @@ class BankArray(Module):
                     self.submodules += mmap
                     csrs += mmap.get_csrs()
                     self.srams.append((name, memory, mapaddr, mmap))
+            if hasattr(obj, "get_constants"):
+                for constant in obj.get_constants():
+                    self.constants.append((name, constant))
             if csrs:
                 mapaddr = self.address_map(name, None)
                 if mapaddr is None:
