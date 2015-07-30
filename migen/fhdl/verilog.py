@@ -39,25 +39,21 @@ def _printsig(ns, s):
     return n
 
 
-def _printintbool(node):
-    if isinstance(node, bool):
-        if node:
-            return "1'd1", False
+def _printintboolconstant(node):
+    if isinstance(node, (int, bool)):
+        node = Constant(node)
+    if isinstance(node, Constant):
+        if node.signed:
+            return (str(node.nbits) + "'sd" + str(2**node.nbits + node.value),
+                    True)
         else:
-            return "1'd0", False
-    elif isinstance(node, int):
-        nbits = bits_for(node)
-        if node >= 0:
-            return str(nbits) + "'d" + str(node), False
-        else:
-            return str(nbits) + "'sd" + str(2**nbits + node), True
-    else:
-        raise TypeError
+            return str(node.nbits) + "'d" + str(node.value), False
+    raise TypeError
 
 
 def _printexpr(ns, node):
-    if isinstance(node, (int, bool)):
-        return _printintbool(node)
+    if isinstance(node, (int, bool, Constant)):
+        return _printintboolconstant(node)
     elif isinstance(node, Signal):
         return ns.get_name(node), node.signed
     elif isinstance(node, _Operator):
@@ -97,7 +93,7 @@ def _printexpr(ns, node):
         return "(" + r + ")", s
     elif isinstance(node, _Slice):
         # Verilog does not like us slicing non-array signals...
-        if isinstance(node.value, Signal) \
+        if isinstance(node.value, (Signal, Constant)) \
           and flen(node.value) == 1 \
           and node.start == 0 and node.stop == 1:
               return _printexpr(ns, node.value)

@@ -22,6 +22,11 @@ Negative integers are explicitly supported. As with MyHDL [countin]_, arithmetic
 
 .. [countin] http://www.jandecaluwe.com/hdldesign/counting.html
 
+Constants
+=========
+
+The ``Constant`` object represents a constant, HDL-literal integer. It behaves like specifying integers or booleans but also supports slicing and can have a bit width or signedness different from what is implied by the value it represents.
+
 Signal
 ======
 The signal object represents a value that is expected to change in the circuit. It does exactly what Verilog's "wire" and "reg" and VHDL's "signal" do.

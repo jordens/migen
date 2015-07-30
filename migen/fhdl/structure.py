@@ -209,6 +209,40 @@ class Replicate(Value):
         self.n = n
 
 
+class Constant(Value):
+    """A constant, HDL-literal integer `Value`
+
+    Parameters
+    ----------
+    value : int
+    bits_sign : int or tuple or None
+        Either an integer `bits` or a tuple `(bits, signed)`
+        specifying the number of bits in this `Constant` and whether it is
+        signed (can represent negative values). `bits_sign` defaults
+        to the minimum width and signedness of `value`.
+    """
+
+    def __init__(self, value, bits_sign=None):
+        from migen.fhdl.bitcontainer import value_bits_sign
+
+        Value.__init__(self)
+
+        self.value = int(value)
+        if bits_sign is None:
+            bits_sign = value_bits_sign(self.value)
+        elif isinstance(bits_sign, int):
+            bits_sign = bits_sign, self.value < 0
+        self.nbits, self.signed = bits_sign
+        if not isinstance(self.nbits, int) or self.nbits <= 0:
+            raise ValueError("Width must be a strictly positive integer")
+
+    def eq(self, other):
+        raise TypeError("Constants do not support procedural assignment")
+
+
+C = Constant  # shorthand
+
+
 class Signal(Value):
     """A `Value` that can change
 

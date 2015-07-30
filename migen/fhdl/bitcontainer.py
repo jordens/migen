@@ -28,7 +28,7 @@ def value_bits_sign(v):
         return 1, False
     elif isinstance(v, int):
         return bits_for(v), v < 0
-    elif isinstance(v, f.Signal):
+    elif isinstance(v, (f.Signal, f.Constant)):
         return v.nbits, v.signed
     elif isinstance(v, (f.ClockSignal, f.ResetSignal)):
         return 1, False

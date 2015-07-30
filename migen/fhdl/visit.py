@@ -10,6 +10,8 @@ class NodeVisitor:
             self.visit_constant(node)
         elif isinstance(node, Signal):
             self.visit_Signal(node)
+        elif isinstance(node, Constant):
+            self.visit_Constant(node)
         elif isinstance(node, ClockSignal):
             self.visit_ClockSignal(node)
         elif isinstance(node, ResetSignal):
@@ -43,6 +45,9 @@ class NodeVisitor:
         pass
 
     def visit_Signal(self, node):
+        pass
+
+    def visit_Constant(self, node):
         pass
 
     def visit_ClockSignal(self, node):
@@ -111,6 +116,8 @@ class NodeTransformer:
             return self.visit_constant(node)
         elif isinstance(node, Signal):
             return self.visit_Signal(node)
+        elif isinstance(node, Constant):
+            return self.visit_Constant(node)
         elif isinstance(node, ClockSignal):
             return self.visit_ClockSignal(node)
         elif isinstance(node, ResetSignal):
@@ -146,6 +153,9 @@ class NodeTransformer:
         return node
 
     def visit_Signal(self, node):
+        return node
+
+    def visit_Constant(self, node):
         return node
 
     def visit_ClockSignal(self, node):
