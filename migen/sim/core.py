@@ -2,6 +2,7 @@ import operator
 import collections
 import inspect
 from functools import wraps
+import logging
 
 from migen.fhdl.structure import *
 from migen.fhdl.structure import (_Value, _Statement,
@@ -12,6 +13,9 @@ from migen.fhdl.tools import list_targetslices, insert_resets, lower_specials
 from migen.fhdl.simplify import MemoryToArray
 from migen.fhdl.specials import _MemoryLocation
 from migen.sim.vcd import VCDWriter, DummyVCDWriter
+
+
+logger = logging.getLogger(__name__)
 
 
 class ClockState:
@@ -96,6 +100,7 @@ class Evaluator:
         r = set()
         for k, v in self.modifications.items():
             if k not in self.signal_values or self.signal_values[k] != v:
+                logger.debug("commit %s = %s", k, v)
                 self.signal_values[k] = v
                 r.add(k)
         self.modifications.clear()
@@ -166,8 +171,9 @@ class Evaluator:
     def assign(self, node, value):
         if isinstance(node, Signal):
             assert not node.variable
-            self.modifications[node] = _truncate(value,
-                                                 node.nbits, node.signed)
+            self.modifications[node] = truncated = _truncate(
+                value, node.nbits, node.signed)
+            logger.debug("signal assign %s = %s", node, truncated)
         elif isinstance(node, Cat):
             for element in node.l:
                 nbits = len(element)
@@ -175,6 +181,8 @@ class Evaluator:
                 value >>= nbits
         elif isinstance(node, _Slice):
             full_value = self.eval(node.value, True)
+            logger.debug("slice assign %s[%s:%s] = %s (was %s)",
+                         node.value, node.start, node.stop, value, full_value)
             # clear bits assigned to by the slice
             full_value &= ~((2**node.stop-1) - (2**node.start-1))
             # set them to the new value
@@ -285,7 +293,9 @@ class Simulator:
         modified = self.evaluator.commit()
         all_modified |= modified
         while modified:
+            logger.debug("modified %s", modified)
             self.evaluator.execute(self.fragment.comb)
+            logger.debug("executed comb")
             modified = self.evaluator.commit()
             all_modified |= modified
         for signal in all_modified:
@@ -335,20 +345,26 @@ class Simulator:
 
     def run(self):
         self.evaluator.execute(self.fragment.comb)
+        logger.debug("executed initial comb")
         self._commit_and_comb_propagate()
+        logger.debug("executed initial commit/propagate")
 
         while True:
+            logger.debug("tick")
             dt, rising, falling = self.time.tick()
             self.vcd.delay(dt)
             for cd in rising:
                 self.evaluator.assign(self.fragment.clock_domains[cd].clk, 1)
                 if cd in self.fragment.sync:
                     self.evaluator.execute(self.fragment.sync[cd])
+                    logger.debug("executed sync cd %s", cd)
                 if cd in self.generators:
                     self._process_generators(cd)
+                    logger.debug("executed generators for cd %s", cd)
             for cd in falling:
                 self.evaluator.assign(self.fragment.clock_domains[cd].clk, 0)
             self._commit_and_comb_propagate()
+            logger.debug("executed commit/propagate")
 
             if not self._continue_simulation():
                 break
