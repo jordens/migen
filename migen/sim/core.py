@@ -8,7 +8,7 @@ from migen.fhdl.structure import (_Value, _Statement,
                                   _Operator, _Slice, _ArrayProxy,
                                   _Assign, _Fragment)
 from migen.fhdl.bitcontainer import value_bits_sign
-from migen.fhdl.tools import list_targets, insert_resets, lower_specials
+from migen.fhdl.tools import list_targetslices, insert_resets, lower_specials
 from migen.fhdl.simplify import MemoryToArray
 from migen.fhdl.specials import _MemoryLocation
 from migen.sim.vcd import VCDWriter, DummyVCDWriter
@@ -254,8 +254,14 @@ class Simulator:
 
         insert_resets(self.fragment)
         # comb signals return to their reset value if nothing assigns them
-        self.fragment.comb[0:0] = [s.eq(s.reset)
-                                   for s in list_targets(self.fragment.comb)]
+        reset = []
+        for s, slices in list_targetslices(self.fragment.comb).items():
+            for l in slices:
+                if l is None:
+                    reset.append(s.eq(s.reset))
+                else:
+                    reset.append(s[l[0]:l[1]].eq(s.reset << l[0]))
+        self.fragment.comb[0:0] = reset
         self.evaluator = Evaluator(self.fragment.clock_domains,
                                    mta.replacements)
 
