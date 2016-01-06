@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from migen.fhdl.structure import *
 from migen.fhdl.structure import _Slice, _Assign, _Fragment
 from migen.fhdl.visit import NodeVisitor, NodeTransformer
@@ -32,6 +34,29 @@ class _TargetLister(NodeVisitor):
             self.visit(choice)
 
 
+class _TargetSliceLister(NodeVisitor):
+    def __init__(self):
+        self.output_list = defaultdict(set)
+        self.target_context = False
+
+    def visit_Signal(self, node):
+        if self.target_context:
+            self.output_list[node].add(None)
+
+    def visit_Slice(self, node):
+        if self.target_context:
+            self.output_list[node.value].add((node.start, node.stop))
+
+    def visit_Assign(self, node):
+        self.target_context = True
+        self.visit(node.l)
+        self.target_context = False
+
+    def visit_ArrayProxy(self, node):
+        for choice in node.choices:
+            self.visit(choice)
+
+
 class _InputLister(NodeVisitor):
     def __init__(self):
         self.output_list = set()
@@ -51,6 +76,12 @@ def list_signals(node):
 
 def list_targets(node):
     lister = _TargetLister()
+    lister.visit(node)
+    return lister.output_list
+
+
+def list_targetslices(node):
+    lister = _TargetSliceLister()
     lister.visit(node)
     return lister.output_list
 
