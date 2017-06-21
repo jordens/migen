@@ -14,7 +14,7 @@ def log2_int(n, need_pow2=True):
 
 
 def bits_for(n, require_sign_bit=False):
-    if n > 0:
+    if n >= 0:
         r = log2_int(n + 1, False)
     else:
         require_sign_bit = True
